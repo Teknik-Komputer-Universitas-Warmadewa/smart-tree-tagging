@@ -1,6 +1,6 @@
 import { BrowserMultiFormatReader } from "@zxing/library";
 import { useEffect, useRef, useState } from "react";
-import { FiRefreshCw, FiCamera } from "react-icons/fi";
+import { FiRefreshCw } from "react-icons/fi";
 
 interface BarcodeScannerProps {
   onBack: () => void;
@@ -67,10 +67,10 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
       <div className="bg-white shadow-lg rounded-lg p-4 max-w-lg w-full text-center">
         <div className="flex justify-between mb-4">
           <button className="text-blue-500 hover:text-blue-700" onClick={handleRefresh}>
-            <FiRefreshCw size={24} />
+            Refresh
           </button>
           <button className="text-blue-500 hover:text-blue-700" onClick={switchCamera}>
-            <FiCamera size={24} />
+            <FiRefreshCw size={24} />
           </button>
         </div>
         <h2 className="text-xl font-semibold text-gray-700">Barcode Scanner</h2>

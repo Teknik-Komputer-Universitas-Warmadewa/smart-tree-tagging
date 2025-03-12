@@ -1,73 +1,36 @@
-import { useEffect, useState } from "react";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useUser } from "../context/UserContext";
 import { auth } from "../firebase";
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  User,
-} from "firebase/auth";
 
 const Auth = () => {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [user, setUser] = useState<User | null>(null);
-
-  // Check if user is already logged in
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        localStorage.setItem("user", JSON.stringify(currentUser));
-        setUser(currentUser);
-      } else {
-        localStorage.removeItem("user");
-        setUser(null);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
+  const { setUser } = useUser();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      let userCredential;
       if (isRegister) {
-        await createUserWithEmailAndPassword(auth, email, password);
-        alert("Registration successful!");
+        userCredential = await createUserWithEmailAndPassword(auth, email, password);
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
-        alert("Login successful!");
+        userCredential = await signInWithEmailAndPassword(auth, email, password);
       }
+
+      const user = userCredential.user;
+      setUser(user);
+      localStorage.setItem("user", JSON.stringify({ email: user.email }));
+      navigate("/dashboard");
     } catch (error) {
       if (error instanceof Error) {
         alert(error.message);
       }
     }
   };
-
-  const handleLogout = async () => {
-    await signOut(auth);
-    localStorage.removeItem("user");
-    setUser(null);
-  };
-
-  if (user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <div className="bg-white p-6 rounded-lg shadow-lg w-96">
-          <h2 className="text-2xl font-semibold text-center mb-4">Welcome, {user.email}</h2>
-          <button
-            onClick={handleLogout}
-            className="w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="bg-white p-6 rounded-lg shadow-lg w-96">
