@@ -1,7 +1,13 @@
 import "./App.css";
+import Auth from "./auth";
 
 function App() {
-  return <></>;
+  return (
+    <>
+      <Auth />
+      {/* <SmartTreeTagging /> */}
+    </>
+  );
 }
 
 export default App;
