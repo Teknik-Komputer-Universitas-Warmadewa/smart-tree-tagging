@@ -63,7 +63,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-100">
+    <div className="flex flex-col items-center  min-h-screen p-4 bg-gray-100">
       <div className="bg-white shadow-lg rounded-lg p-4 max-w-lg w-full text-center">
         <div className="flex justify-between mb-4">
           <button className="text-blue-500 hover:text-blue-700" onClick={handleRefresh}>

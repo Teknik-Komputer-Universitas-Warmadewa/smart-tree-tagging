@@ -1,18 +1,6 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { UserProvider, useUser } from "./context/UserContext";
-import Auth from "./auth";
-import Dashboard from "./Dashboard";
-
-function AppRoutes() {
-  const { user } = useUser();
-
-  return (
-    <Routes>
-      <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Auth />} />
-      <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/" />} />
-    </Routes>
-  );
-}
+import { BrowserRouter as Router } from "react-router-dom";
+import { UserProvider } from "./context/UserContext";
+import AppRoutes from "./AppRoutes";
 
 function App() {
   return (
