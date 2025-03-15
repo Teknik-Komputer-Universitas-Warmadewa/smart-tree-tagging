@@ -13,6 +13,7 @@
     "@types/w3c-web-nfc": "^1.0.4",
     "@zxing/library": "^0.21.3",
     "firebase": "^11.3.1",
+    "maplibre-gl": "^5.2.0",
     "react": "^19.0.0",
     "react-barcode-reader": "^0.0.2",
     "react-barcode-scanner": "^3.1.0",

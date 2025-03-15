@@ -23,6 +23,7 @@ const Container = styled.div`
       }
       & > li {
         padding: 10px !important;
+        padding: 10px 10px;
         & > div {
           & > span {
             display: none;
@@ -55,7 +56,7 @@ const Container = styled.div`
     & > li {
       width: 100%;
       box-sizing: border-box;
-      padding: 10px 10px;
+
       transition: color 0.3s;
       border-bottom: 1px solid black;
 
@@ -63,6 +64,7 @@ const Container = styled.div`
         width: 100%;
         display: block;
         display: flex;
+        padding: 10px 10px;
 
         & > .icon {
           height: 24px;
@@ -71,13 +73,17 @@ const Container = styled.div`
         }
 
         &.active {
-          color: #43e8c7;
+          background-color: #43e8c7;
         }
+      }
+
+      & > div {
+        padding: 10px 10px;
       }
     }
 
     & > li:hover {
-      color: #43e8c7;
+      background-color: #43e8c7;
     }
   }
 `;

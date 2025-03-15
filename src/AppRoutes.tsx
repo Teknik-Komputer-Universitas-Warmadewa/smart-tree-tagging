@@ -5,6 +5,8 @@ import Spinner from "./components/Spinner";
 import { useUser } from "./context/UserContext";
 import Dashboard from "./pages/Dashboard";
 import SmartTreeTagging from "./pages/smart-tree-tagging";
+import RecordScanner from "./pages/record-scanner";
+import SmartFarmTagging from "./pages/smart-farm-tagging";
 
 function AppRoutes() {
   const { user, loading } = useUser();
@@ -37,7 +39,23 @@ function AppRoutes() {
           path="record"
           element={
             <Suspense fallback={<Spinner />}>
+              <RecordScanner />
+            </Suspense>
+          }
+        />
+        <Route
+          path="smart-tree-tagging"
+          element={
+            <Suspense fallback={<Spinner />}>
               <SmartTreeTagging />
+            </Suspense>
+          }
+        />
+        <Route
+          path="smart-farm-tagging"
+          element={
+            <Suspense fallback={<Spinner />}>
+              <SmartFarmTagging />
             </Suspense>
           }
         />

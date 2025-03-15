@@ -12,7 +12,7 @@ const Container = styled.div`
   }
 `;
 
-const SmartTreeTagging = () => {
+const SmartFarmTagging = () => {
   const [mapRef, setMapRef] = useState<HTMLDivElement | null>(null);
   const mapLibreRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
@@ -22,7 +22,7 @@ const SmartTreeTagging = () => {
     const init = async () => {
       const map = new maplibregl.Map({
         container: "map2d",
-
+        // style: "https://demotiles.maplibre.org/style.json",
         style:
           "https://api.maptiler.com/maps/basic-v2/style.json?key=QPPbodMM65oXklexLrAP#6.9/-14.83331/-62.45226",
         zoom: 18,
@@ -56,8 +56,7 @@ const SmartTreeTagging = () => {
       popupRef.current = null;
     };
   }, [mapRef]);
-
-  return <Container id="map2d" ref={(ref) => setMapRef(ref)} />;
+  return <Container id="map2d" ref={(ref) => setMapRef(ref)}></Container>;
 };
 
-export default SmartTreeTagging;
+export default SmartFarmTagging;
