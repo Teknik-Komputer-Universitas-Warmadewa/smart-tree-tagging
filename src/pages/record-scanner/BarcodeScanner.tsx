@@ -1,9 +1,18 @@
 import { BrowserMultiFormatReader } from "@zxing/library";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { arrayUnion, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import {
+  arrayUnion,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 import { auth, db } from "../../firebase";
+import { useProject } from "../../hook/useProject";
 import { TreeData, TreeType } from "../../types";
 
 interface BarcodeScannerProps {
@@ -12,6 +21,7 @@ interface BarcodeScannerProps {
 
 const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const { selectedProject } = useProject();
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
@@ -100,12 +110,15 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
       setError("Please login to record tree data");
       return;
     }
+    if (!selectedProject) {
+      setError("No project selected");
+      return;
+    }
     if (!result) return;
 
     const updatedAt = new Date().toISOString();
     const treeData: TreeData = {
       id: result,
-      location: location ? { latitude: location.lat, longitude: location.lng } : null,
       remark: updateAll || updateRemark ? remark : "",
       type: updateAll || updateType ? type : null,
       age: updateAll || updateAge ? parseInt(age) || 0 : 0,
@@ -116,19 +129,19 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
     };
 
     try {
-      const docRef = doc(db, "trees", result);
+      const docRef = doc(db, "projects", selectedProject.id, "trees", result);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
         // Document exists, update it
         await updateDoc(docRef, {
-          logs: arrayUnion(treeData), // Append log to the logs array
+          logs: arrayUnion(treeData),
         });
       } else {
         // Document does NOT exist, create it with an initial logs array
         await setDoc(docRef, {
           id: result,
-          logs: [treeData], // Create an array with the first log entry
+          logs: [treeData],
         });
       }
 
@@ -179,6 +192,22 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
       setUpdateWatering(true);
     }
   };
+
+  useEffect(() => {
+    const migrateTrees = async () => {
+      console.log("migration");
+      const projectId = "UYrPlEePCBFjALRJUL2k";
+      const oldTreesRef = collection(db, "trees");
+      const querySnapshot = await getDocs(oldTreesRef);
+      for (const treeDoc of querySnapshot.docs) {
+        const treeData = treeDoc.data();
+        const newDocRef = doc(db, "projects", projectId, "trees", treeDoc.id);
+        await setDoc(newDocRef, treeData);
+      }
+    };
+
+    migrateTrees();
+  }, []);
 
   return (
     <div className="flex flex-col items-center min-h-screen p-4 bg-gray-100">
@@ -350,12 +379,6 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
                     <p>
                       <strong>ID:</strong> {entry.id}
                     </p>
-                    {entry.location && (
-                      <p>
-                        <strong>Location:</strong> {entry.location.latitude.toFixed(4)},{" "}
-                        {entry.location.longitude.toFixed(4)}
-                      </p>
-                    )}
                     <p>
                       <strong>Remark:</strong> {entry.remark || "-"}
                     </p>

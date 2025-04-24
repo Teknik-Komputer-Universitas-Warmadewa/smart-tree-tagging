@@ -27,13 +27,12 @@ export type TreeType =
 
 export interface TreeData {
   id: string;
-  location: { latitude: number; longitude: number } | null;
-  remark: string;
-  type: TreeType | null;
-  age: number;
-  fertilizationDate: string;
-  pesticideDate: string;
-  wateringDate: string;
+  remark?: string;
+  type?: TreeType | null;
+  age?: number;
+  fertilizationDate?: string;
+  pesticideDate?: string;
+  wateringDate?: string;
   updatedAt: string;
 }
 

@@ -1,41 +1,39 @@
 import { Feature, GeoJsonProperties, Geometry } from "geojson";
 import { useMemo } from "react";
-
-import { TreeData } from "../types";
+import { Project, TreeData } from "../types";
 import { getTreeDetails } from "../utils/treeUtils";
 
-const OFFSET_STEP = 0.00005; // Distance step (~5 meters)
+const GRID_SPACING = 0.0001; // ~10 meters per step
 
-const useMapTree = (isReady: boolean, trees: TreeData[] | null) => {
+const useMapTree = (isReady: boolean, trees: TreeData[] | null, project: Project | null) => {
   return useMemo(() => {
     let features: Feature<Geometry, GeoJsonProperties>[] = [];
 
-    if (isReady && trees) {
-      const coordMap = new Map<string, number>();
+    if (isReady && trees && project) {
+      const centerLat = project.geolocation.latitude;
+      const centerLon = project.geolocation.longitude;
 
-      features = trees.map<Feature<Geometry, GeoJsonProperties>>((d) => {
+      // Calculate grid size (square root of tree count to form a square)
+      const gridSize = Math.ceil(Math.sqrt(trees.length));
+      const halfGrid = Math.floor(gridSize / 2);
+
+      features = trees.map<Feature<Geometry, GeoJsonProperties>>((d, index) => {
         const treeDetail = getTreeDetails(d.id);
-        const lat = d.location?.latitude ?? 0;
-        const lon = d.location?.longitude ?? 0;
-        const key = `${lat},${lon}`;
 
-        // Get how many times this coordinate appears
-        const count = coordMap.get(key) || 0;
-        coordMap.set(key, count + 1);
+        // Calculate row and column in the grid
+        const row = Math.floor(index / gridSize) - halfGrid;
+        const col = (index % gridSize) - halfGrid;
 
-        // Spread in a grid-like pattern
-        const row = Math.floor(count / 3); // 3 trees per row
-        const col = count % 3; // 3 columns
-
-        const offsetLat = lat + row * OFFSET_STEP;
-        const offsetLon = lon + col * OFFSET_STEP;
+        // Offset from the center
+        const offsetLat = centerLat + row * GRID_SPACING;
+        const offsetLon = centerLon + col * GRID_SPACING;
 
         return {
           type: "Feature",
           properties: {
             treeType: treeDetail.type,
-            originalLat: lat,
-            originalLon: lon,
+            treeId: d.id,
+            updatedAt: d.updatedAt,
           },
           geometry: {
             type: "Point",
@@ -46,7 +44,7 @@ const useMapTree = (isReady: boolean, trees: TreeData[] | null) => {
     }
 
     return features;
-  }, [isReady, trees]);
+  }, [isReady, trees, project]);
 };
 
 export default useMapTree;

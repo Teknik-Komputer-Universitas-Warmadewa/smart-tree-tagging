@@ -15,7 +15,7 @@ const Pool = () => {
 
   useEffect(() => {
     if (location.pathname === "/dashboard") {
-      navigate("/dashboard/record", { replace: true });
+      navigate("/dashboard/smart-tree-tagging", { replace: true });
     }
   }, [location, navigate]);
 
