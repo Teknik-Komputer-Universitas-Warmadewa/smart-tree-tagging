@@ -20,8 +20,8 @@ export default defineConfig({
         swDest: "dist/sw.js",
       },
       manifest: {
-        name: "Task Management APP",
-        short_name: "Taskio",
+        name: "Smart Tagging",
+        short_name: "Smart Tagging",
         icons: [
           {
             src: "pwa-64x64.png",
