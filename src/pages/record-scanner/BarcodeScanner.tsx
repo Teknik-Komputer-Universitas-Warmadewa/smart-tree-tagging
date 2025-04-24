@@ -4,7 +4,7 @@ import { arrayUnion, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 import { auth, db } from "../../firebase";
-import { TreeData } from "../../types";
+import { TreeData, TreeType } from "../../types";
 
 interface BarcodeScannerProps {
   onBack: () => void;
@@ -21,7 +21,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
 
   // Input states
   const [remark, setRemark] = useState("");
-  const [type, setType] = useState("");
+  const [type, setType] = useState<TreeType | null>(null);
   const [age, setAge] = useState("");
   const [fertilizationDate, setFertilizationDate] = useState("");
   const [pesticideDate, setPesticideDate] = useState("");
@@ -107,7 +107,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
       id: result,
       location: location ? { latitude: location.lat, longitude: location.lng } : null,
       remark: updateAll || updateRemark ? remark : "",
-      type: updateAll || updateType ? type : "",
+      type: updateAll || updateType ? type : null,
       age: updateAll || updateAge ? parseInt(age) || 0 : 0,
       fertilizationDate: updateAll || updateFertilization ? fertilizationDate : "",
       pesticideDate: updateAll || updatePesticide ? pesticideDate : "",
@@ -154,7 +154,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
     setResult(null);
     setError(null);
     setRemark("");
-    setType("");
+    setType(null);
     setAge("");
     setFertilizationDate("");
     setPesticideDate("");
@@ -231,8 +231,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
               <div>
                 <input
                   type="text"
-                  value={type}
-                  onChange={(e) => setType(e.target.value)}
+                  value={type ?? ""}
+                  onChange={(e) => setType(e.target.value as TreeType)}
                   placeholder="Type"
                   className="w-full p-2 border rounded"
                 />

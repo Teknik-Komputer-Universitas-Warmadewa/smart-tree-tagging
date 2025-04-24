@@ -1,6 +1,12 @@
-import maplibregl from "maplibre-gl";
+import { collection, getDocs } from "firebase/firestore";
+import maplibregl, { GeoJSONSource } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
+import { db } from "../../firebase";
+import useMapTree from "../../hook/useMapTree";
+import { TreeData } from "../../types";
+import { loadTreeImages } from "../../utils/loadImages";
+import { addDevicesLayer } from "../../utils/addLayers";
 
 const Container = styled.div`
   color: white;
@@ -16,13 +22,35 @@ const SmartTreeTagging = () => {
   const [mapRef, setMapRef] = useState<HTMLDivElement | null>(null);
   const mapLibreRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
-  const [, setIsMapReady] = useState(false);
+  const [isMapReady, setIsMapReady] = useState(false);
+  const [trees, setTrees] = useState<TreeData[]>([]);
+
+  useEffect(() => {
+    const fetchTrees = async () => {
+      const querySnapshot = await getDocs(collection(db, "trees"));
+      const treeData: { [id: string]: TreeData } = {};
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data() as { logs: TreeData[] };
+        if (data.logs?.length) {
+          // Sort logs by `updatedAt` (latest first)
+          const latestLog = [...data.logs].sort((a, b) =>
+            (b.updatedAt || "").localeCompare(a.updatedAt || "")
+          )[0];
+          treeData[latestLog.id] = latestLog; // Keep only the latest entry per ID
+        }
+      });
+
+      setTrees(Object.values(treeData));
+    };
+
+    fetchTrees();
+  }, []);
 
   useEffect(() => {
     const init = async () => {
       const map = new maplibregl.Map({
         container: "map2d",
-
         style:
           "https://api.maptiler.com/maps/basic-v2/style.json?key=QPPbodMM65oXklexLrAP#6.9/-14.83331/-62.45226",
         zoom: 18,
@@ -33,6 +61,10 @@ const SmartTreeTagging = () => {
       mapLibreRef.current = map;
 
       map.on("load", async () => {
+        await loadTreeImages(map);
+
+        await addDevicesLayer(map);
+
         const popup = new maplibregl.Popup({
           closeButton: false,
           closeOnClick: false,
@@ -56,6 +88,20 @@ const SmartTreeTagging = () => {
       popupRef.current = null;
     };
   }, [mapRef]);
+
+  const treeFeatures = useMapTree(isMapReady, trees);
+
+  useEffect(() => {
+    if (isMapReady && mapLibreRef.current) {
+      if (mapLibreRef.current.getSource("devices")) {
+        (mapLibreRef.current.getSource("devices") as GeoJSONSource).setData({
+          type: "FeatureCollection",
+          features: [...treeFeatures],
+        });
+        console.log(treeFeatures);
+      }
+    }
+  }, [isMapReady, treeFeatures]);
 
   return <Container id="map2d" ref={(ref) => setMapRef(ref)} />;
 };

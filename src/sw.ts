@@ -1,6 +1,6 @@
 import { cleanupOutdatedCaches, precacheAndRoute } from "workbox-precaching";
-import { Route, registerRoute } from "workbox-routing";
-import { CacheFirst } from "workbox-strategies";
+import { NavigationRoute, Route, registerRoute } from "workbox-routing";
+import { CacheFirst, NetworkFirst } from "workbox-strategies";
 
 declare let self: ServiceWorkerGlobalScope;
 
@@ -20,3 +20,23 @@ const imageRoute = new Route(
   })
 );
 registerRoute(imageRoute);
+
+// cache api calls
+const fetchTasksRoute = new Route(
+  ({ request }) => {
+    return request.url === import.meta.env.VITE_API_BASE_URL + "/tasks";
+  },
+  new NetworkFirst({
+    cacheName: "api/fetch-tasks",
+  })
+);
+registerRoute(fetchTasksRoute);
+
+// cache navigations
+const navigationRoute = new NavigationRoute(
+  new NetworkFirst({
+    cacheName: "navigation",
+    networkTimeoutSeconds: 3,
+  })
+);
+registerRoute(navigationRoute);
