@@ -9,12 +9,6 @@ const NFCReader: React.FC<NFCReaderProps> = ({ onBack }) => {
   const [error, setError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState<boolean>(false);
 
-  useEffect(() => {
-    if (isScanning) {
-      startNFCScan();
-    }
-  }, [isScanning]);
-
   const startNFCScan = async () => {
     try {
       if ("NDEFReader" in window) {
@@ -40,6 +34,12 @@ const NFCReader: React.FC<NFCReaderProps> = ({ onBack }) => {
       setIsScanning(false);
     }
   };
+
+  useEffect(() => {
+    if (isScanning) {
+      startNFCScan();
+    }
+  }, [isScanning]);
 
   return (
     <div className="flex flex-col items-center min-h-screen p-4 bg-gray-100">
