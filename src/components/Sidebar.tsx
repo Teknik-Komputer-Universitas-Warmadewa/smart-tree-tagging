@@ -4,6 +4,7 @@ import { PiCowFill } from "react-icons/pi";
 import { NavLink } from "react-router-dom";
 import styled from "styled-components";
 import { useUser } from "../context/UserContext";
+import { useProject } from "../hook/useProject";
 
 const Container = styled.div`
   background-color: rgb(238, 238, 238);
@@ -90,10 +91,11 @@ const Container = styled.div`
 
 const Sidebar = () => {
   const { logout } = useUser();
+  const { selectedProject } = useProject();
 
   return (
     <Container>
-      <p className=" text-gray-800">WIOT</p>
+      <p className=" text-gray-800">{selectedProject?.name}</p>
       <ul>
         <li className=" mt-10">
           <NavLink to="record">

@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import SmartTreeTagging from "./pages/smart-tree-tagging";
 import RecordScanner from "./pages/record-scanner";
 import SmartFarmTagging from "./pages/smart-farm-tagging";
+import ProjectSelector from "./components/ProjectSelector";
 
 function AppRoutes() {
   const { user, loading } = useUser();
@@ -25,7 +26,15 @@ function AppRoutes() {
         path="/"
         element={
           <Suspense fallback={<Spinner />}>
-            {user ? <Navigate to="/dashboard" /> : <Auth />}
+            {user ? <Navigate to="/projects" /> : <Auth />}
+          </Suspense>
+        }
+      />
+      <Route
+        path="/projects"
+        element={
+          <Suspense fallback={<Spinner />}>
+            {user ? <ProjectSelector /> : <Navigate to="/" />}
           </Suspense>
         }
       />

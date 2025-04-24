@@ -1,3 +1,18 @@
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  logo?: string;
+  geolocation: {
+    latitude: number;
+    longitude: number;
+  };
+  userId: string;
+  createdAt: string;
+  startDate: string;
+  endDate: string;
+}
+
 export type TreeType =
   | "ALPUKAT" // Avocado
   | "DURIAN" // Durian
