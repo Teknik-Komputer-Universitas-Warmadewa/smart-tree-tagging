@@ -6,32 +6,32 @@ export const addDevicesLayer = (map: maplibregl.Map) => {
       type: "FeatureCollection",
       features: [],
     },
-    // cluster: true, // Enable clustering
-    // clusterMaxZoom: 14, // Max zoom level for clustering
-    // clusterRadius: 22, // Radius in pixels for clustering points
+    cluster: true, // Enable clustering
+    clusterMaxZoom: 14, // Max zoom level for clustering
+    clusterRadius: 22, // Radius in pixels for clustering points
   });
 
   // Add the cluster layer first (circle for clusters)
-  // map.addLayer({
-  //   id: "dasDevices-clusters",
-  //   type: "circle",
-  //   source: "devices",
-  //   filter: ["has", "point_count"],
-  //   paint: {
-  //     "circle-color": "#51bbd6",
-  //     "circle-radius": [
-  //       "interpolate",
-  //       ["linear"],
-  //       ["get", "point_count"],
-  //       1,
-  //       10, // 1 point -> 10px radius
-  //       100,
-  //       30, // 100 points -> 30px radius
-  //       1000,
-  //       50, // 1000 points -> 50px radius
-  //     ],
-  //   },
-  // });
+  map.addLayer({
+    id: "dasDevices-clusters",
+    type: "circle",
+    source: "devices",
+    filter: ["has", "point_count"],
+    paint: {
+      "circle-color": "#51bbd6",
+      "circle-radius": [
+        "interpolate",
+        ["linear"],
+        ["get", "point_count"],
+        1,
+        10, // 1 point -> 10px radius
+        100,
+        30, // 100 points -> 30px radius
+        1000,
+        50, // 1000 points -> 50px radius
+      ],
+    },
+  });
 
   // Add the cluster count layer
   map.addLayer({
@@ -57,7 +57,7 @@ export const addDevicesLayer = (map: maplibregl.Map) => {
     filter: ["!", ["has", "point_count"]], // Only show non-clustered points
     layout: {
       "icon-image": "Alpukat-pin",
-      "icon-size": 0.2,
+      "icon-size": 0.5,
     },
   });
 };

@@ -1,5 +1,5 @@
 import alpukatPng from "../assets/alpukat.png";
-import durianPng from "../assets/durian.jpg";
+import durianPng from "../assets/durian.png";
 import maplibregl from "maplibre-gl";
 
 const imageTuples = ["Alpukat-pin", alpukatPng, "Durian-pin", durianPng];
