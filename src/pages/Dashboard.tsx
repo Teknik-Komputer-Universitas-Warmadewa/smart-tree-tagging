@@ -3,10 +3,11 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import Sidebar from "../components/Sidebar";
 
-const Container = styled.div`
-  width: 100vw;
-
+const ContainerSidebarContainer = styled.div`
   display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
 `;
 
 const Pool = () => {
@@ -20,10 +21,10 @@ const Pool = () => {
   }, [location, navigate]);
 
   return (
-    <Container>
+    <ContainerSidebarContainer>
       <Sidebar />
       <Outlet />
-    </Container>
+    </ContainerSidebarContainer>
   );
 };
 

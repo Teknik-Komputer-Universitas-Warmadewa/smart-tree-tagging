@@ -6,85 +6,76 @@ import styled from "styled-components";
 import { useUser } from "../context/UserContext";
 import { useProject } from "../hook/useProject";
 
-const Container = styled.div`
-  background-color: rgb(238, 238, 238);
-  width: 240px;
+// Styled components for Sidebar
+const SidebarContainer = styled.div`
+  background-color: #1a1a1a;
+  width: 200px;
   height: 100vh;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #ddd;
+  color: white;
 
-  @media only screen and (max-width: 600px) {
-    width: 40px;
-    & > ul {
-      & > li {
-        padding: 10px !important;
-        & > a {
-          & > span {
-            display: none;
-          }
-        }
-      }
-      & > li {
-        padding: 10px !important;
-        padding: 10px 10px;
-        & > div {
-          & > span {
-            display: none;
-          }
-        }
-      }
-    }
-  }
-
-  @media only screen and (max-width: 830px) {
-    /* height: calc(100vh - 100px); */
-
+  @media (max-width: 600px) {
+    width: 60px;
+    & > ul > li > a > span,
+    & > ul > li > div > span,
     & > p {
-      padding: 20px;
+      display: none;
     }
   }
+`;
 
-  & > p {
-    text-align: center;
-    padding: 8px;
-    color: #1717174f;
+const SidebarTitle = styled.p`
+  text-align: center;
+  padding: 16px 0;
+  color: white;
+  font-weight: 500;
+  font-size: 14px;
+  border-bottom: 1px solid #ddd;
+`;
+
+const SidebarList = styled.ul`
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+`;
+
+const SidebarItem = styled.li`
+  width: 100%;
+  transition: background-color 0.3s;
+
+  & > a,
+  & > div {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    color: white;
+    text-decoration: none;
+    font-size: 14px;
   }
 
-  & > ul {
-    list-style-type: none;
-    margin: 0;
-    padding: 0;
-    width: 100%;
+  & > a.active {
+    background-color: #43e8c7;
+    color: #fff;
+  }
 
-    & > li {
-      width: 100%;
-      box-sizing: border-box;
+  &:hover {
+    background-color: #e0e0e0;
+  }
 
-      transition: color 0.3s;
-      border-bottom: 1px solid black;
+  & .icon {
+    margin-right: 8px;
+    display: flex;
+    align-items: center;
+  }
 
-      & > a {
-        width: 100%;
-        display: block;
-        display: flex;
-        padding: 10px 10px;
-
-        & > .icon {
-          height: 24px;
-          display: flex;
-          align-items: center;
-        }
-
-        &.active {
-          background-color: #43e8c7;
-        }
-      }
-
-      & > div {
-        padding: 10px 10px;
-      }
-    }
-
-    & > li:hover {
-      background-color: #43e8c7;
+  @media (max-width: 600px) {
+    & > a,
+    & > div {
+      padding: 12px;
+      justify-content: center;
     }
   }
 `;
@@ -94,44 +85,43 @@ const Sidebar = () => {
   const { selectedProject } = useProject();
 
   return (
-    <Container>
-      <p className=" text-gray-800">{selectedProject?.name}</p>
-      <ul>
-        <li className=" mt-10">
+    <SidebarContainer>
+      <SidebarTitle>{selectedProject?.name.toUpperCase() || "Select Project"}</SidebarTitle>
+      <SidebarList>
+        <SidebarItem>
           <NavLink to="record">
             <div className="icon">
-              <MdQrCodeScanner size={23} />
+              <MdQrCodeScanner size={20} />
             </div>
-            <span className="ml-3">Pencatatan</span>
+            <span>Pencatatan</span>
           </NavLink>
-        </li>
-        <li className="">
+        </SidebarItem>
+        <SidebarItem>
           <NavLink to="smart-tree-tagging">
             <div className="icon">
-              <FaTree size={23} />
+              <FaTree size={20} />
             </div>
-            <span className="ml-3">Smart Tree</span>
+            <span>Smart Tree</span>
           </NavLink>
-        </li>
-        <li>
+        </SidebarItem>
+        <SidebarItem>
           <NavLink to="smart-farm-tagging">
             <div className="icon">
-              <PiCowFill size={23} />
+              <PiCowFill size={20} />
             </div>
-            <span className="ml-3">Smart Farm</span>
+            <span>Smart Farm</span>
           </NavLink>
-        </li>
-
-        <li>
+        </SidebarItem>
+        <SidebarItem>
           <div className="flex items-center cursor-pointer" onClick={logout}>
             <div className="icon">
-              <FaSignOutAlt size={23} />
+              <FaSignOutAlt size={20} />
             </div>
-            <span className="ml-3">Logout</span>
+            <span>Logout</span>
           </div>
-        </li>
-      </ul>
-    </Container>
+        </SidebarItem>
+      </SidebarList>
+    </SidebarContainer>
   );
 };
 
