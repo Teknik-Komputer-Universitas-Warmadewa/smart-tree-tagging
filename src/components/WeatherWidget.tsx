@@ -1,7 +1,5 @@
-import axios from "axios";
-import { useEffect, useState } from "react";
-import styled from "styled-components";
 import { FaSync } from "react-icons/fa";
+import styled from "styled-components";
 import { Weather } from "../types";
 
 // Styled components for WeatherWidget
@@ -65,42 +63,19 @@ const WeatherIcon = styled.img`
 `;
 
 interface WeatherWidgetProps {
-  latitude: number;
-  longitude: number;
+  weatherData: Weather | null;
+  weatherError: string | null;
+  fetchWeather: () => void;
 }
 
-const WeatherWidget: React.FC<WeatherWidgetProps> = ({ latitude, longitude }) => {
-  const [weatherData, setWeatherData] = useState<Weather | null>(null);
-  const [weatherError, setWeatherError] = useState<string | null>(null);
-
-  const fetchWeather = async (longitude: number, latitude: number) => {
-    const apiKey = import.meta.env.VITE_OPEN_WEATHER_API_KEU;
-    if (!apiKey) {
-      setWeatherError("Weather API key is missing");
-      return;
-    }
-
-    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&units=metric&appid=${apiKey}`;
-
-    try {
-      const response = await axios.get(url);
-      console.log(response.data);
-      setWeatherData(response.data);
-      setWeatherError(null);
-    } catch (error) {
-      if (error instanceof Error) {
-        setWeatherError("Failed to fetch weather data");
-      }
-    }
-  };
-
-  useEffect(() => {
-    fetchWeather(longitude, latitude);
-  }, [latitude, longitude]);
-  console.log(longitude, latitude);
+const WeatherWidget: React.FC<WeatherWidgetProps> = ({
+  weatherData,
+  weatherError,
+  fetchWeather,
+}) => {
   return (
     <WeatherPanel>
-      <RefreshButton onClick={() => fetchWeather(longitude, latitude)}>
+      <RefreshButton onClick={() => fetchWeather()}>
         <FaSync size={16} />
       </RefreshButton>
       <WeatherTitle>Weather Information</WeatherTitle>

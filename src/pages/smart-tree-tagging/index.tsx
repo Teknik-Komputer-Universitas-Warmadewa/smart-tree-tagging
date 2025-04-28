@@ -1,20 +1,32 @@
-import { ArcElement, Chart as ChartJS, Legend, Tooltip } from "chart.js";
+import axios from "axios";
+import {
+  ArcElement,
+  Chart as ChartJS,
+  Legend,
+  LinearScale,
+  LineElement,
+  PointElement,
+  TimeScale,
+  Tooltip,
+} from "chart.js";
+import "chartjs-adapter-date-fns";
 import { collection, getDocs } from "firebase/firestore";
 import maplibregl, { GeoJSONSource } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
-import { Doughnut } from "react-chartjs-2";
-import { FaChevronDown, FaChevronUp, FaSearch } from "react-icons/fa";
+import { Doughnut, Line } from "react-chartjs-2";
+import { FaChevronDown, FaChevronUp } from "react-icons/fa";
 import styled from "styled-components";
+import WeatherWidget from "../../components/WeatherWidget";
 import { db } from "../../firebase";
 import useMapTree from "../../hook/useMapTree";
 import { useProject } from "../../hook/useProject";
-import { TreeData } from "../../types";
+import { TreeData, Weather } from "../../types";
 import { addDevicesLayer } from "../../utils/addLayers";
 import { loadTreeImages } from "../../utils/loadImages";
-import WeatherWidget from "../../components/WeatherWidget";
+import { adjustHarvestDateWithWeather, getWeatherRecommendations } from "../../utils/treeUtils";
 
 // Register Chart.js components
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(ArcElement, Tooltip, Legend, LineElement, PointElement, LinearScale, TimeScale);
 
 // Styled components for SmartTreeTagging
 const TreeContainer = styled.div`
@@ -43,64 +55,12 @@ const MapContainer = styled.div`
   }
 `;
 
-const PromptPanel = styled.div`
-  position: absolute;
-  width: calc(100% - 50px);
-  bottom: 5px;
-  background-color: #3a3a3a;
-  border-radius: 25px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  padding: 8px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  z-index: 15;
-
-  @media (max-width: 768px) {
-    width: 95%;
-    bottom: 170px; /* Adjust for smaller screens */
-  }
-`;
-
-const PromptInput = styled.input`
-  flex: 1;
-  border: none;
-  outline: none;
-  font-size: 14px;
-  color: white;
-  background-color: #3a3a3a;
-  padding: 8px;
-
-  &::placeholder {
-    color: #999;
-  }
-`;
-
-const IconButton = styled.button`
-  background-color: transparent;
-  border: none;
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: white;
-  transition: background-color 0.2s, color 0.2s;
-
-  &:hover {
-    background-color: #f0f0f0;
-    color: #333;
-  }
-`;
-
 const BottomPanel = styled.div<{ isVisible: boolean }>`
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 200px;
+  height: 350px;
   background-color: #2a2a2a;
   color: #ffffff;
   padding: 16px;
@@ -108,6 +68,7 @@ const BottomPanel = styled.div<{ isVisible: boolean }>`
   transition: transform 0.3s ease-in-out;
   border-top: 1px solid #444;
   z-index: 10;
+  overflow-y: auto;
 `;
 
 const ToggleButton = styled.button`
@@ -140,19 +101,6 @@ const SidebarPanel = styled.div`
   scrollbar-width: thin;
   scrollbar-color: #555 #2a2a2a;
 
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: #2a2a2a;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: #555;
-    border-radius: 4px;
-  }
-
   @media (max-width: 768px) {
     flex: none;
     width: 100%;
@@ -166,7 +114,7 @@ const SectionTitle = styled.h3`
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #a0a0a0;
+  color: white;
   margin-bottom: 12px;
 `;
 
@@ -252,6 +200,25 @@ const StatusIndicator = styled.span<{ isActive: boolean }>`
   color: ${({ isActive }) => (isActive ? "#22c55e" : "#a0a0a0")};
 `;
 
+const LineChartWrapper = styled.div`
+  height: 150px;
+  margin-bottom: 16px;
+`;
+
+const RecommendationSection = styled.div`
+  background-color: #333;
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 12px;
+`;
+
+const WeatherInfo = styled.div`
+  background-color: #333;
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 12px;
+`;
+
 const SmartTreeTagging = () => {
   const { selectedProject } = useProject();
   const [mapRef, setMapRef] = useState<HTMLDivElement | null>(null);
@@ -260,9 +227,29 @@ const SmartTreeTagging = () => {
   const [isMapReady, setIsMapReady] = useState(false);
   const [trees, setTrees] = useState<TreeData[]>([]);
   const [allLogs, setAllLogs] = useState<TreeData[]>([]); // Store all logs for the alerts panel
-  const [prompt, setPrompt] = useState(""); // State for the input prompt
 
-  const [isPanelVisible, setIsPanelVisible] = useState(true); // State for panel visibility
+  const [isPanelVisible, setIsPanelVisible] = useState(false); // State for panel visibility
+
+  const [weatherData, setWeatherData] = useState<Weather | null>(null);
+  const [weatherError, setWeatherError] = useState<string | null>(null);
+
+  const [isPhone, setIsPhone] = useState<boolean>(false); // State untuk mendeteksi jika perangkat adalah ponsel
+
+  // Fungsi untuk mendeteksi apakah perangkat adalah ponsel berdasarkan lebar layar
+  const checkIsPhone = () => {
+    const width = window.innerWidth;
+    setIsPhone(width <= 768); // Breakpoint 768px untuk ponsel
+  };
+
+  // useEffect untuk memeriksa ukuran layar saat komponen dimount dan saat window di-resize
+  useEffect(() => {
+    checkIsPhone(); // Periksa saat komponen dimount
+    window.addEventListener("resize", checkIsPhone); // Periksa saat window di-resize
+
+    return () => {
+      window.removeEventListener("resize", checkIsPhone); // Bersihkan event listener saat komponen di-unmount
+    };
+  }, []);
 
   useEffect(() => {
     const fetchTrees = async () => {
@@ -356,7 +343,7 @@ const SmartTreeTagging = () => {
 
   // Chart.js data for the doughnut chart
   const chartData = {
-    labels: ["Active", "Inactive"],
+    labels: ["Pohon Aktif", "Pohon Non-Aktif"],
     datasets: [
       {
         data: [activeTrees, inactiveTrees],
@@ -395,15 +382,124 @@ const SmartTreeTagging = () => {
     maintainAspectRatio: false,
   };
 
-  const handleSearch = () => console.log("Search:", prompt);
+  // Persiapkan data untuk line chart
+  const logActivityData = () => {
+    const logsByDate: { [key: string]: number } = {};
+
+    allLogs.forEach((log) => {
+      const date = new Date(log.updatedAt).toISOString().split("T")[0];
+      logsByDate[date] = (logsByDate[date] || 0) + 1;
+    });
+
+    const labels = Object.keys(logsByDate).sort();
+    const data = labels.map((date) => logsByDate[date]);
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Jumlah Log per Hari",
+          data,
+          fill: false,
+          borderColor: "#51bbd6",
+          tension: 0.1,
+        },
+      ],
+    };
+  };
+
+  const lineChartOptions = {
+    scales: {
+      x: {
+        type: "time" as const,
+        time: {
+          unit: "day" as const,
+        },
+        title: {
+          display: true,
+          text: "Tanggal",
+          color: "#ffffff",
+        },
+        ticks: {
+          color: "#a0a0a0",
+        },
+      },
+      y: {
+        title: {
+          display: true,
+          text: "Jumlah Log",
+          color: "#ffffff",
+        },
+        ticks: {
+          color: "#a0a0a0",
+          stepSize: 1,
+        },
+      },
+    },
+    plugins: {
+      legend: {
+        labels: {
+          color: "#ffffff",
+        },
+      },
+      tooltip: {
+        backgroundColor: "#333",
+        titleColor: "#fff",
+        bodyColor: "#fff",
+      },
+    },
+    maintainAspectRatio: false,
+  };
+
+  const fetchWeather = async (longitude: number, latitude: number) => {
+    const apiKey = import.meta.env.VITE_OPEN_WEATHER_API_KEU;
+    if (!apiKey) {
+      setWeatherError("Weather API key is missing");
+      return;
+    }
+
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&units=metric&appid=${apiKey}`;
+
+    try {
+      const response = await axios.get(url);
+      console.log(response.data);
+      setWeatherData(response.data);
+      setWeatherError(null);
+    } catch (error) {
+      if (error instanceof Error) {
+        setWeatherError("Failed to fetch weather data");
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (selectedProject?.geolocation) {
+      fetchWeather(selectedProject?.geolocation.longitude, selectedProject?.geolocation.latitude);
+    }
+  }, [selectedProject?.geolocation]);
+
+  // Prediksi panen untuk pohon pertama yang aktif
+  const predictionResult =
+    trees.length > 0
+      ? adjustHarvestDateWithWeather(trees[0], trees[0].type || "Hass", weatherData)
+      : "Tidak ada data pohon.";
+
+  // Rekomendasi berdasarkan cuaca
+  const recommendations = getWeatherRecommendations(weatherData);
 
   return (
     <TreeContainer>
       <MapContainer id="map2d" ref={(ref) => setMapRef(ref)}>
-        {selectedProject?.geolocation && (
+        {!isPhone && selectedProject?.geolocation && (
           <WeatherWidget
-            longitude={selectedProject?.geolocation.longitude}
-            latitude={selectedProject?.geolocation.latitude}
+            weatherData={weatherData}
+            weatherError={weatherError}
+            fetchWeather={() =>
+              fetchWeather(
+                selectedProject?.geolocation.longitude,
+                selectedProject?.geolocation.latitude
+              )
+            }
           />
         )}
         <BottomPanel isVisible={isPanelVisible}>
@@ -411,48 +507,85 @@ const SmartTreeTagging = () => {
             {isPanelVisible ? <FaChevronDown size={16} /> : <FaChevronUp size={16} />}
           </ToggleButton>
 
-          <PromptPanel>
-            <PromptInput
-              type="text"
-              placeholder="Ask anything"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-            />
+          {/* Informasi Cuaca */}
+          {weatherData && (
+            <WeatherInfo>
+              <SectionTitle>Informasi Cuaca</SectionTitle>
+              <p className="text-sm text-gray-300">
+                Lokasi: {weatherData.name}, {weatherData.sys.country}
+              </p>
+              <p className="text-sm text-gray-300">Suhu: {weatherData.main.temp}°C</p>
+              <p className="text-sm text-gray-300">Kelembapan: {weatherData.main.humidity}%</p>
+              <p className="text-sm text-gray-300">Kondisi: {weatherData.weather[0].description}</p>
+            </WeatherInfo>
+          )}
 
-            <IconButton onClick={handleSearch}>
-              <FaSearch size={16} />
-            </IconButton>
-          </PromptPanel>
+          {/* Line Chart untuk Log Aktivitas */}
+          <SectionTitle>Log Aktivitas Pohon</SectionTitle>
+          <LineChartWrapper>
+            <Line data={logActivityData()} options={lineChartOptions} />
+          </LineChartWrapper>
+
+          {/* Prediksi Panen */}
+          <RecommendationSection>
+            <SectionTitle>Prediksi Panen</SectionTitle>
+            {typeof predictionResult === "string" ? (
+              <p className="text-sm text-gray-300">{predictionResult}</p>
+            ) : (
+              <>
+                <p className="text-sm text-gray-300">
+                  Perkiraan Pembungaan: {predictionResult.floweringDate}
+                </p>
+                <p className="text-sm text-gray-300">
+                  Perkiraan Panen: {predictionResult.harvestDate}
+                </p>
+                {predictionResult.delayReason && (
+                  <p className="text-sm text-yellow-400">Catatan: {predictionResult.delayReason}</p>
+                )}
+              </>
+            )}
+          </RecommendationSection>
+
+          {/* Rekomendasi Berdasarkan Cuaca */}
+          <RecommendationSection>
+            <SectionTitle>Rekomendasi</SectionTitle>
+            {recommendations.map((rec, index) => (
+              <p key={index} className="text-sm text-gray-300 mb-1">
+                - {rec}
+              </p>
+            ))}
+          </RecommendationSection>
         </BottomPanel>
       </MapContainer>
       <SidebarPanel>
-        <h2 className="text-xl font-bold mb-6">Pohon Analysis</h2>
+        <h2 className="text-xl font-bold mb-6">Informasi Kebun</h2>
         <AlertSection>
           <SectionTitle>Tree Logs</SectionTitle>
           {allLogs.length > 0 ? (
             <AlertList>
               {allLogs.map((log, index) => (
                 <AlertItem key={`${log.id}-${index}`}>
-                  <AlertDetail>ID: {log.id}</AlertDetail>
+                  <AlertDetail style={{ color: "#ed7146" }}>ID: {log.id}</AlertDetail>
                   <AlertDetail>Updated: {new Date(log.updatedAt).toLocaleString()}</AlertDetail>
 
-                  {log.type && <AlertDetail>Type: {log.type}</AlertDetail>}
-                  {log.age !== undefined && <AlertDetail>Age: {log.age} years</AlertDetail>}
+                  {log.type && <AlertDetail>Tipe: {log.type}</AlertDetail>}
+                  {log.age !== undefined && <AlertDetail>Usia: {log.age} tahun</AlertDetail>}
                   {log.fertilizationDate && (
                     <AlertDetail>
-                      Fertilized: {new Date(log.fertilizationDate).toLocaleDateString()}
+                      Pemupukan: {new Date(log.fertilizationDate).toLocaleDateString()}
                     </AlertDetail>
                   )}
                   {log.pesticideDate && (
                     <AlertDetail>
-                      Pesticide: {new Date(log.pesticideDate).toLocaleDateString()}
+                      Pestisida: {new Date(log.pesticideDate).toLocaleDateString()}
                     </AlertDetail>
                   )}
                   {log.wateringDate && (
                     <AlertDetail>
-                      Watered: {new Date(log.wateringDate).toLocaleDateString()}
+                      Penyiraman: {new Date(log.wateringDate).toLocaleDateString()}
                     </AlertDetail>
                   )}
+                  {log.remark && <AlertDetail>Keterangan: {log.remark}</AlertDetail>}
                 </AlertItem>
               ))}
             </AlertList>

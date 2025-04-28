@@ -1,3 +1,24 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Scrollbar Styles for All */
+::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: #2a2a2a;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background-color: #555;
+    border-radius: 4px;
+  }
+  
+  /* Optional: Make it smoother for other browsers */
+  html {
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: #555 #2a2a2a; /* thumb color, track color */
+  }
+  
