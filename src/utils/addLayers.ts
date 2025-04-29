@@ -57,7 +57,7 @@ export const addDevicesLayer = (map: maplibregl.Map) => {
     filter: ["!", ["has", "point_count"]], // Only show non-clustered points
     layout: {
       "icon-image": ["concat", ["get", "type"], "-pin"],
-      "icon-size": 0.5,
+      "icon-size": 0.9,
     },
   });
 };
