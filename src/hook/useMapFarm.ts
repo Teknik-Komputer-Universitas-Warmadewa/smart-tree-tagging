@@ -1,24 +1,24 @@
 import { Feature, GeoJsonProperties, Geometry } from "geojson";
 import { useMemo } from "react";
-import { Project, TreeData } from "../types";
-import { getTreeDetails } from "../utils/treeUtils";
+import { AnimalData, Project } from "../types";
+import { getAnimalDetails } from "../utils/treeUtils";
 
 const GRID_SPACING = 0.0001; // ~10 meters per step
 
-const useMapTree = (isReady: boolean, trees: TreeData[] | null, project: Project | null) => {
+const useMapFarm = (isReady: boolean, animals: AnimalData[] | null, project: Project | null) => {
   return useMemo(() => {
     let features: Feature<Geometry, GeoJsonProperties>[] = [];
 
-    if (isReady && trees && project) {
+    if (isReady && animals && project) {
       const centerLat = project.geolocation.latitude;
       const centerLon = project.geolocation.longitude;
 
       // Calculate grid size (square root of tree count to form a square)
-      const gridSize = Math.ceil(Math.sqrt(trees.length));
+      const gridSize = Math.ceil(Math.sqrt(animals.length));
       const halfGrid = Math.floor(gridSize / 2);
 
-      features = trees.map<Feature<Geometry, GeoJsonProperties>>((d, index) => {
-        const treeDetail = getTreeDetails(d.id);
+      features = animals.map<Feature<Geometry, GeoJsonProperties>>((d, index) => {
+        const treeDetail = getAnimalDetails(d.id);
 
         // Calculate row and column in the grid
         const row = Math.floor(index / gridSize) - halfGrid;
@@ -44,7 +44,7 @@ const useMapTree = (isReady: boolean, trees: TreeData[] | null, project: Project
     }
 
     return features;
-  }, [isReady, trees, project]);
+  }, [isReady, animals, project]);
 };
 
-export default useMapTree;
+export default useMapFarm;

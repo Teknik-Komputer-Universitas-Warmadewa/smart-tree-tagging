@@ -2,11 +2,12 @@ import { BrowserMultiFormatReader } from "@zxing/library";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { arrayUnion, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
-import { FiRefreshCw } from "react-icons/fi";
 import { FaChevronDown, FaChevronUp } from "react-icons/fa";
+import { FiRefreshCw } from "react-icons/fi";
 import { auth, db } from "../../firebase";
 import { useProject } from "../../hook/useProject";
-import { TreeData, TreeType } from "../../types";
+import { AnimalData, TreeData, TreeType } from "../../types";
+import { getAnimalDetails, parseTreeId } from "../../utils/treeUtils";
 
 interface BarcodeScannerProps {
   onBack: () => void;
@@ -23,26 +24,41 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLogVisible, setIsLogVisible] = useState(true);
+  const [tagType, setTagType] = useState<"tree" | "animal" | null>(null);
 
-  // Input states
-  const [remark, setRemark] = useState("");
-  const [type, setType] = useState<TreeType | null>(null);
-  const [age, setAge] = useState("");
+  // Input states for TreeData
+  const [treeRemark, setTreeRemark] = useState("");
+  const [treeType, setTreeType] = useState<TreeType | null>(null);
+  const [treeAge, setTreeAge] = useState("");
   const [fertilizationDate, setFertilizationDate] = useState(new Date().toISOString());
   const [pesticideDate, setPesticideDate] = useState(new Date().toISOString());
   const [wateringDate, setWateringDate] = useState(new Date().toISOString());
 
-  // Checkbox states (default true for all)
+  // Input states for AnimalData
+  const [animalGender, setAnimalGender] = useState<"Jantan" | "Betina" | "">("");
+  const [animalBirthDate, setAnimalBirthDate] = useState("");
+  const [animalWeight, setAnimalWeight] = useState("");
+  const [animalVaccinationDate, setAnimalVaccinationDate] = useState("");
+  const [animalProduction, setAnimalProduction] = useState("");
+
+  // Checkbox states for TreeData
   const [updateAll, setUpdateAll] = useState(true);
-  const [updateRemark, setUpdateRemark] = useState(true);
-  const [updateType, setUpdateType] = useState(true);
-  const [updateAge, setUpdateAge] = useState(true);
+  const [updateTreeRemark, setUpdateTreeRemark] = useState(true);
+  const [updateTreeType, setUpdateTreeType] = useState(true);
+  const [updateTreeAge, setUpdateTreeAge] = useState(true);
   const [updateFertilization, setUpdateFertilization] = useState(true);
   const [updatePesticide, setUpdatePesticide] = useState(true);
   const [updateWatering, setUpdateWatering] = useState(true);
 
-  // Log state as an object with arrays
-  const [treeLog, setTreeLog] = useState<{ [id: string]: TreeData[] }>({});
+  // Checkbox states for AnimalData
+  const [updateAnimalGender, setUpdateAnimalGender] = useState(true);
+  const [updateAnimalBirthDate, setUpdateAnimalBirthDate] = useState(true);
+  const [updateAnimalWeight, setUpdateAnimalWeight] = useState(true);
+  const [updateAnimalVaccination, setUpdateAnimalVaccination] = useState(true);
+  const [updateAnimalProduction, setUpdateAnimalProduction] = useState(true);
+
+  // Log state as an object with arrays (union of TreeData and AnimalData)
+  const [tagLog, setTagLog] = useState<{ [id: string]: (TreeData | AnimalData)[] }>({});
 
   // Check authentication state
   useEffect(() => {
@@ -52,7 +68,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
     return () => unsubscribe();
   }, []);
 
-  // Get geolocation (optional)
+  // Get geolocation
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -67,17 +83,23 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
     );
   }, []);
 
-  // Fetch existing logs and pre-fill inputs when a barcode is scanned
+  // Determine tag type and fetch existing logs when a barcode is scanned
   useEffect(() => {
-    const fetchTreeLogs = async () => {
+    const fetchTagLogs = async () => {
       if (!result || !selectedProject) return;
 
+      const parsedId = parseTreeId(result);
+      const isTreeTag = parsedId.deviceType === "ST";
+      setTagType(isTreeTag ? "tree" : "animal");
+
       try {
-        const docRef = doc(db, "projects", selectedProject.id, "trees", result);
+        const collectionName = isTreeTag ? "trees" : "animals";
+        const docRef = doc(db, "projects", selectedProject.id, collectionName, result);
+        console.log(collectionName, isTreeTag, parsedId);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-          const data = docSnap.data() as { logs: TreeData[] };
+          const data = docSnap.data() as { logs: (TreeData | AnimalData)[] };
           if (data.logs?.length) {
             // Sort logs by updatedAt to get the latest entry
             const sortedLogs = data.logs.sort((a, b) =>
@@ -86,26 +108,36 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
             const latestLog = sortedLogs[0];
 
             // Pre-fill input fields with the latest log data
-            setRemark(latestLog.remark || "");
-            setType(latestLog.type || null);
-            setAge(latestLog.age ? latestLog.age.toString() : "");
-            setFertilizationDate(latestLog.fertilizationDate || "");
-            setPesticideDate(latestLog.pesticideDate || "");
-            setWateringDate(latestLog.wateringDate || "");
+            if (isTreeTag) {
+              const treeLog = latestLog as TreeData;
+              setTreeRemark(treeLog.remark || "");
+              setTreeType(treeLog.type || null);
+              setTreeAge(treeLog.age ? treeLog.age.toString() : "");
+              setFertilizationDate(treeLog.fertilizationDate || "");
+              setPesticideDate(treeLog.pesticideDate || "");
+              setWateringDate(treeLog.wateringDate || "");
+            } else {
+              const animalLog = latestLog as AnimalData;
+              setAnimalGender(animalLog.gender || "");
+              setAnimalBirthDate(animalLog.birthDate || "");
+              setAnimalWeight(animalLog.weight ? animalLog.weight.toString() : "");
+              setAnimalVaccinationDate(animalLog.vaccinationDate || "");
+              setAnimalProduction(animalLog.production ? animalLog.production.toString() : "");
+            }
 
-            // Update treeLog state to display all logs
-            setTreeLog((prevLog) => ({
+            // Update tagLog state to display all logs
+            setTagLog((prevLog) => ({
               ...prevLog,
               [result]: sortedLogs,
             }));
           }
         }
       } catch (err) {
-        setError("Error fetching tree logs: " + (err as Error).message);
+        setError("Error fetching logs: " + (err as Error).message);
       }
     };
 
-    fetchTreeLogs();
+    fetchTagLogs();
   }, [result, selectedProject]);
 
   // Initialize the barcode scanner
@@ -144,14 +176,14 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
 
   const handleRecord = async () => {
     if (!user) {
-      setError("Please login to record tree data");
+      setError("Please login to record data");
       return;
     }
     if (!selectedProject) {
       setError("No project selected");
       return;
     }
-    if (!result) return;
+    if (!result || !tagType) return;
 
     setIsLoading(true);
     setError(null);
@@ -159,13 +191,13 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
     const updatedAt = new Date().toISOString();
     const currentDate = new Date().toISOString().split("T")[0]; // Current date in YYYY-MM-DD format
 
-    // Fetch the latest log to use as the base for non-date fields
-    const docRef = doc(db, "projects", selectedProject.id, "trees", result);
+    const collectionName = tagType === "tree" ? "trees" : "animals";
+    const docRef = doc(db, "projects", selectedProject.id, collectionName, result);
     const docSnap = await getDoc(docRef);
-    let latestLog: TreeData | null = null;
+    let latestLog: TreeData | AnimalData | null = null;
 
     if (docSnap.exists()) {
-      const data = docSnap.data() as { logs: TreeData[] };
+      const data = docSnap.data() as { logs: (TreeData | AnimalData)[] };
       if (data.logs?.length) {
         latestLog = data.logs.sort((a, b) =>
           (b.updatedAt || "").localeCompare(a.updatedAt || "")
@@ -173,42 +205,78 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
       }
     }
 
-    const treeData: TreeData = {
-      id: result,
-      remark: updateAll || updateRemark ? remark : latestLog?.remark || "",
-      type: updateAll || updateType ? type : latestLog?.type || null,
-      age: updateAll || updateAge ? parseInt(age) || 0 : latestLog?.age || 0,
-      fertilizationDate:
-        updateAll || updateFertilization ? currentDate : latestLog?.fertilizationDate || "",
-      pesticideDate: updateAll || updatePesticide ? currentDate : latestLog?.pesticideDate || "",
-      wateringDate: updateAll || updateWatering ? currentDate : latestLog?.wateringDate || "",
-      updatedAt,
-    };
+    let tagData: TreeData | AnimalData;
+    if (tagType === "tree") {
+      tagData = {
+        id: result,
+        remark: updateAll || updateTreeRemark ? treeRemark : (latestLog as TreeData)?.remark || "",
+        type: updateAll || updateTreeType ? treeType : (latestLog as TreeData)?.type || null,
+        age:
+          updateAll || updateTreeAge ? parseInt(treeAge) || 0 : (latestLog as TreeData)?.age || 0,
+        fertilizationDate:
+          updateAll || updateFertilization
+            ? currentDate
+            : (latestLog as TreeData)?.fertilizationDate || "",
+        pesticideDate:
+          updateAll || updatePesticide ? currentDate : (latestLog as TreeData)?.pesticideDate || "",
+        wateringDate:
+          updateAll || updateWatering ? currentDate : (latestLog as TreeData)?.wateringDate || "",
+        updatedAt,
+      };
+    } else {
+      tagData = {
+        id: result,
+        type: (getAnimalDetails(result).type as string) || "Unknown",
+
+        healthStatus: (latestLog as AnimalData)?.healthStatus || "Healthy", // Default to Healthy if new
+        gender:
+          updateAll || updateAnimalGender
+            ? (animalGender as "Jantan" | "Betina")
+            : (latestLog as AnimalData)?.gender || "Jantan",
+        birthDate:
+          updateAll || updateAnimalBirthDate
+            ? animalBirthDate
+            : (latestLog as AnimalData)?.birthDate || "",
+        weight:
+          updateAll || updateAnimalWeight
+            ? parseFloat(animalWeight) || 0
+            : (latestLog as AnimalData)?.weight || 0,
+        vaccinationDate:
+          updateAll || updateAnimalVaccination
+            ? animalVaccinationDate
+            : (latestLog as AnimalData)?.vaccinationDate || "",
+        production:
+          updateAll || updateAnimalProduction
+            ? parseFloat(animalProduction) || 0
+            : (latestLog as AnimalData)?.production || 0,
+        updatedAt,
+      };
+    }
 
     try {
       if (docSnap.exists()) {
         await updateDoc(docRef, {
-          logs: arrayUnion(treeData),
+          logs: arrayUnion(tagData),
         });
       } else {
         await setDoc(docRef, {
           id: result,
-          logs: [treeData],
+          logs: [tagData],
         });
       }
 
-      // Update local tree log state
-      setTreeLog((prevLog) => {
+      // Update local tag log state
+      setTagLog((prevLog) => {
         const previousEntries = prevLog[result] || [];
         return {
           ...prevLog,
-          [result]: [...previousEntries, treeData].sort((a, b) =>
+          [result]: [...previousEntries, tagData].sort((a, b) =>
             (b.updatedAt || "").localeCompare(a.updatedAt || "")
           ),
         };
       });
 
-      setError("Tree data saved successfully");
+      setError("Data saved successfully");
     } catch (err) {
       setError("Error saving to Firebase: " + (err as Error).message);
     } finally {
@@ -219,14 +287,34 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
   const handleRefresh = () => {
     setResult(null);
     setError(null);
-    setRemark("");
-    setType(null);
-    setAge("");
+    setTagType(null);
+    // Reset TreeData inputs
+    setTreeRemark("");
+    setTreeType(null);
+    setTreeAge("");
     setFertilizationDate("");
     setPesticideDate("");
     setWateringDate("");
+    // Reset AnimalData inputs
+    setAnimalGender("");
+    setAnimalBirthDate("");
+    setAnimalWeight("");
+    setAnimalVaccinationDate("");
+    setAnimalProduction("");
+    // Reset checkboxes
     setUpdateAll(true);
-    setTreeLog({});
+    setUpdateTreeRemark(true);
+    setUpdateTreeType(true);
+    setUpdateTreeAge(true);
+    setUpdateFertilization(true);
+    setUpdatePesticide(true);
+    setUpdateWatering(true);
+    setUpdateAnimalGender(true);
+    setUpdateAnimalBirthDate(true);
+    setUpdateAnimalWeight(true);
+    setUpdateAnimalVaccination(true);
+    setUpdateAnimalProduction(true);
+    setTagLog({});
   };
 
   const switchCamera = () => {
@@ -238,12 +326,20 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
   const handleUpdateAllChange = (checked: boolean) => {
     setUpdateAll(checked);
     if (checked) {
-      setUpdateRemark(true);
-      setUpdateType(true);
-      setUpdateAge(true);
-      setUpdateFertilization(true);
-      setUpdatePesticide(true);
-      setUpdateWatering(true);
+      if (tagType === "tree") {
+        setUpdateTreeRemark(true);
+        setUpdateTreeType(true);
+        setUpdateTreeAge(true);
+        setUpdateFertilization(true);
+        setUpdatePesticide(true);
+        setUpdateWatering(true);
+      } else if (tagType === "animal") {
+        setUpdateAnimalGender(true);
+        setUpdateAnimalBirthDate(true);
+        setUpdateAnimalWeight(true);
+        setUpdateAnimalVaccination(true);
+        setUpdateAnimalProduction(true);
+      }
     }
   };
 
@@ -284,9 +380,11 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
           </p>
         )}
 
-        {result && (
+        {result && tagType && (
           <div className="mb-4">
-            <p className="text-green-400 font-medium mb-4">Scanned ID: {result}</p>
+            <p className="text-green-400 font-medium mb-4">
+              Scanned ID: {result} ({tagType === "tree" ? "Smart Tree Tag" : "Smart Farm Tag"})
+            </p>
 
             {/* Input Fields */}
             <div className="space-y-4">
@@ -299,122 +397,231 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
                 />
                 <span className="ml-2 text-sm font-semibold text-gray-300">Perbarui Semua</span>
               </label>
-              <div>
-                <label className="flex items-center mt-1">
-                  <input
-                    type="checkbox"
-                    checked={updateAll || updateRemark}
-                    onChange={(e) => setUpdateRemark(e.target.checked)}
-                    disabled={updateAll}
-                    className="form-checkbox h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded"
-                  />
-                  <span className="ml-2 text-sm text-gray-300">Keterangan</span>
-                </label>
-                <input
-                  type="text"
-                  value={remark}
-                  onChange={(e) => setRemark(e.target.value)}
-                  placeholder="Keterangan"
-                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
 
-              <div>
-                <label className="flex items-center mt-1">
-                  <input
-                    type="checkbox"
-                    checked={updateAll || updateType}
-                    onChange={(e) => setUpdateType(e.target.checked)}
-                    disabled={updateAll}
-                    className="form-checkbox h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded"
-                  />
-                  <span className="ml-2 text-sm text-gray-300">Tipe</span>
-                </label>
-                <input
-                  type="text"
-                  value={type ?? ""}
-                  onChange={(e) => setType(e.target.value as TreeType)}
-                  placeholder="Type"
-                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              {tagType === "tree" ? (
+                <>
+                  <div>
+                    <label className="flex items-center mt-1">
+                      <input
+                        type="checkbox"
+                        checked={updateAll || updateTreeRemark}
+                        onChange={(e) => setUpdateTreeRemark(e.target.checked)}
+                        disabled={updateAll}
+                        className="form-checkbox h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-300">Keterangan</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={treeRemark}
+                      onChange={(e) => setTreeRemark(e.target.value)}
+                      placeholder="Keterangan"
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
 
-              <div>
-                <label className="flex items-center mt-1">
-                  <input
-                    type="checkbox"
-                    checked={updateAll || updateAge}
-                    onChange={(e) => setUpdateAge(e.target.checked)}
-                    disabled={updateAll}
-                    className="form-checkbox h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded"
-                  />
-                  <span className="ml-2 text-sm text-gray-300">Usia</span>
-                </label>
-                <input
-                  type="number"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  placeholder="Usia"
-                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+                  <div>
+                    <label className="flex items-center mt-1">
+                      <input
+                        type="checkbox"
+                        checked={updateAll || updateTreeType}
+                        onChange={(e) => setUpdateTreeType(e.target.checked)}
+                        disabled={updateAll}
+                        className="form-checkbox h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-300">Tipe</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={treeType ?? ""}
+                      onChange={(e) => setTreeType(e.target.value as TreeType)}
+                      placeholder="Type"
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
 
-              <div>
-                <label className="flex items-center mt-1">
-                  <input
-                    type="checkbox"
-                    checked={updateAll || updateFertilization}
-                    onChange={(e) => setUpdateFertilization(e.target.checked)}
-                    disabled={updateAll}
-                    className="form-checkbox h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded"
-                  />
-                  <span className="ml-2 text-sm text-gray-300">Tanggal Pemupukan</span>
-                </label>
-                <input
-                  type="date"
-                  value={fertilizationDate}
-                  onChange={(e) => setFertilizationDate(e.target.value)}
-                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+                  <div>
+                    <label className="flex items-center mt-1">
+                      <input
+                        type="checkbox"
+                        checked={updateAll || updateTreeAge}
+                        onChange={(e) => setUpdateTreeAge(e.target.checked)}
+                        disabled={updateAll}
+                        className="form-checkbox h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-300">Usia</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={treeAge}
+                      onChange={(e) => setTreeAge(e.target.value)}
+                      placeholder="Usia"
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
 
-              <div>
-                <label className="flex items-center mt-1">
-                  <input
-                    type="checkbox"
-                    checked={updateAll || updatePesticide}
-                    onChange={(e) => setUpdatePesticide(e.target.checked)}
-                    disabled={updateAll}
-                    className="form-checkbox h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded"
-                  />
-                  <span className="ml-2 text-sm text-gray-300">Tanggal Pestisida</span>
-                </label>
-                <input
-                  type="date"
-                  value={pesticideDate}
-                  onChange={(e) => setPesticideDate(e.target.value)}
-                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+                  <div>
+                    <label className="flex items-center mt-1">
+                      <input
+                        type="checkbox"
+                        checked={updateAll || updateFertilization}
+                        onChange={(e) => setUpdateFertilization(e.target.checked)}
+                        disabled={updateAll}
+                        className="form-checkbox h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-300">Tanggal Pemupukan</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={fertilizationDate}
+                      onChange={(e) => setFertilizationDate(e.target.value)}
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
 
-              <div>
-                <label className="flex items-center mt-1">
-                  <input
-                    type="checkbox"
-                    checked={updateAll || updateWatering}
-                    onChange={(e) => setUpdateWatering(e.target.checked)}
-                    disabled={updateAll}
-                    className="form-checkbox h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded"
-                  />
-                  <span className="ml-2 text-sm text-gray-300">Tanggal Penyiraman</span>
-                </label>
-                <input
-                  type="date"
-                  value={wateringDate}
-                  onChange={(e) => setWateringDate(e.target.value)}
-                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+                  <div>
+                    <label className="flex items-center mt-1">
+                      <input
+                        type="checkbox"
+                        checked={updateAll || updatePesticide}
+                        onChange={(e) => setUpdatePesticide(e.target.checked)}
+                        disabled={updateAll}
+                        className="form-checkbox h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-300">Tanggal Pestisida</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={pesticideDate}
+                      onChange={(e) => setPesticideDate(e.target.value)}
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="flex items-center mt-1">
+                      <input
+                        type="checkbox"
+                        checked={updateAll || updateWatering}
+                        onChange={(e) => setUpdateWatering(e.target.checked)}
+                        disabled={updateAll}
+                        className="form-checkbox h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-300">Tanggal Penyiraman</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={wateringDate}
+                      onChange={(e) => setWateringDate(e.target.value)}
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="flex items-center mt-1">
+                      <input
+                        type="checkbox"
+                        checked={updateAll || updateAnimalGender}
+                        onChange={(e) => setUpdateAnimalGender(e.target.checked)}
+                        disabled={updateAll}
+                        className="form-checkbox h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-300">Kelamin</span>
+                    </label>
+                    <select
+                      value={animalGender}
+                      onChange={(e) => setAnimalGender(e.target.value as "Jantan" | "Betina")}
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Pilih Kelamin</option>
+                      <option value="Jantan">Jantan</option>
+                      <option value="Betina">Betina</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="flex items-center mt-1">
+                      <input
+                        type="checkbox"
+                        checked={updateAll || updateAnimalBirthDate}
+                        onChange={(e) => setUpdateAnimalBirthDate(e.target.checked)}
+                        disabled={updateAll}
+                        className="form-checkbox h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-300">Tanggal Lahir</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={animalBirthDate}
+                      onChange={(e) => setAnimalBirthDate(e.target.value)}
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="flex items-center mt-1">
+                      <input
+                        type="checkbox"
+                        checked={updateAll || updateAnimalWeight}
+                        onChange={(e) => setUpdateAnimalWeight(e.target.checked)}
+                        disabled={updateAll}
+                        className="form-checkbox h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-300">Berat Badan (kg)</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={animalWeight}
+                      onChange={(e) => setAnimalWeight(e.target.value)}
+                      placeholder="Berat Badan"
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="flex items-center mt-1">
+                      <input
+                        type="checkbox"
+                        checked={updateAll || updateAnimalVaccination}
+                        onChange={(e) => setUpdateAnimalVaccination(e.target.checked)}
+                        disabled={updateAll}
+                        className="form-checkbox h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-300">Tanggal Vaksinasi</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={animalVaccinationDate}
+                      onChange={(e) => setAnimalVaccinationDate(e.target.value)}
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="flex items-center mt-1">
+                      <input
+                        type="checkbox"
+                        checked={updateAll || updateAnimalProduction}
+                        onChange={(e) => setUpdateAnimalProduction(e.target.checked)}
+                        disabled={updateAll}
+                        className="form-checkbox h-4 w-4 text-blue-500 bg-gray-700 border-gray-600 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-300">
+                        Produksi (telur/liter susu)
+                      </span>
+                    </label>
+                    <input
+                      type="number"
+                      value={animalProduction}
+                      onChange={(e) => setAnimalProduction(e.target.value)}
+                      placeholder="Produksi"
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
             <button
@@ -424,56 +631,102 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
               onClick={handleRecord}
               disabled={isLoading}
             >
-              {isLoading ? "Saving..." : "Record Tree"}
+              {isLoading ? "Saving..." : `Record ${tagType === "tree" ? "Tree" : "Animal"}`}
             </button>
           </div>
         )}
 
-        {/* Tree Log Display */}
-        {Object.keys(treeLog).length > 0 && (
+        {/* Tag Log Display */}
+        {Object.keys(tagLog).length > 0 && (
           <div className="mt-4">
             <button
               className="flex items-center justify-between w-full p-2 bg-gray-700 rounded-lg"
               onClick={() => setIsLogVisible(!isLogVisible)}
             >
-              <h3 className="text-lg font-semibold text-gray-200">Tree Log</h3>
+              <h3 className="text-lg font-semibold text-gray-200">Tag Log</h3>
               {isLogVisible ? <FaChevronUp size={16} /> : <FaChevronDown size={16} />}
             </button>
             {isLogVisible && (
               <div className="mt-2 max-h-60 overflow-y-auto bg-gray-700 rounded-lg p-2">
-                {Object.entries(treeLog).map(([id, entries]) =>
-                  entries.map((entry, index) => (
-                    <div
-                      key={`${id}-${index}`}
-                      className="border-b border-gray-600 py-2 text-left text-sm"
-                    >
-                      <p>
-                        <strong>ID:</strong> {entry.id}
-                      </p>
-                      <p>
-                        <strong>Remark:</strong> {entry.remark || "-"}
-                      </p>
-                      <p>
-                        <strong>Tipe:</strong> {entry.type || "-"}
-                      </p>
-                      <p>
-                        <strong>Age:</strong> {entry.age || 0}
-                      </p>
-                      <p>
-                        <strong>Pemupukan:</strong> {entry.fertilizationDate || "-"}
-                      </p>
-                      <p>
-                        <strong>Pestisida:</strong> {entry.pesticideDate || "-"}
-                      </p>
-                      <p>
-                        <strong>Penyiraman:</strong> {entry.wateringDate || "-"}
-                      </p>
-                      <p>
-                        <strong>Updated At:</strong>{" "}
-                        {new Date(entry.updatedAt).toLocaleString() || "-"}
-                      </p>
-                    </div>
-                  ))
+                {Object.entries(tagLog).map(([id, entries]) =>
+                  entries.map((entry, index) => {
+                    const isTreeLog = "remark" in entry; // Determine if the log is for a tree
+                    return (
+                      <div
+                        key={`${id}-${index}`}
+                        className="border-b border-gray-600 py-2 text-left text-sm"
+                      >
+                        <p>
+                          <strong>ID:</strong> {entry.id}
+                        </p>
+                        {isTreeLog ? (
+                          <>
+                            <p>
+                              <strong>Type:</strong> Smart Tree Tag
+                            </p>
+                            <p>
+                              <strong>Remark:</strong> {(entry as TreeData).remark || "-"}
+                            </p>
+                            <p>
+                              <strong>Tipe:</strong> {(entry as TreeData).type || "-"}
+                            </p>
+                            <p>
+                              <strong>Age:</strong> {(entry as TreeData).age || 0}
+                            </p>
+                            <p>
+                              <strong>Pemupukan:</strong>{" "}
+                              {(entry as TreeData).fertilizationDate || "-"}
+                            </p>
+                            <p>
+                              <strong>Pestisida:</strong> {(entry as TreeData).pesticideDate || "-"}
+                            </p>
+                            <p>
+                              <strong>Penyiraman:</strong> {(entry as TreeData).wateringDate || "-"}
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p>
+                              <strong>Type:</strong> Smart Farm Tag
+                            </p>
+                            <p>
+                              <strong>Tipe:</strong> {(entry as AnimalData).type || "-"}
+                            </p>
+                            <p>
+                              <strong>Kelamin:</strong> {(entry as AnimalData).gender || "-"}
+                            </p>
+                            <p>
+                              <strong>Tanggal Lahir:</strong>{" "}
+                              {(entry as AnimalData).birthDate
+                                ? new Date((entry as AnimalData).birthDate).toLocaleDateString()
+                                : "-"}
+                            </p>
+                            <p>
+                              <strong>Berat Badan:</strong> {(entry as AnimalData).weight || 0} kg
+                            </p>
+                            <p>
+                              <strong>Vaksinasi:</strong>{" "}
+                              {(entry as AnimalData).vaccinationDate
+                                ? new Date(
+                                    (entry as AnimalData).vaccinationDate as string
+                                  ).toLocaleDateString()
+                                : "-"}
+                            </p>
+                            <p>
+                              <strong>Produksi:</strong> {(entry as AnimalData).production || 0}{" "}
+                              {(entry as AnimalData).type === "Ayam Petelur"
+                                ? "telur"
+                                : "liter susu"}
+                            </p>
+                          </>
+                        )}
+                        <p>
+                          <strong>Updated At:</strong>{" "}
+                          {new Date(entry.updatedAt).toLocaleString() || "-"}
+                        </p>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             )}

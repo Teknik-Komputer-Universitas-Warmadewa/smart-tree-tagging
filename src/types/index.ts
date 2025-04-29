@@ -36,6 +36,19 @@ export interface TreeData {
   updatedAt: string;
 }
 
+export interface AnimalData {
+  id: string;
+  type?: string; // e.g., "Cow", "Chicken"
+  updatedAt: string;
+  healthStatus?: string; // e.g., "Healthy", "Sick"
+  gender: "Jantan" | "Betina";
+  birthDate: string; // ISO date string, e.g., "2023-01-15"
+  weight: number; // in kilograms
+  vaccinationDate?: string; // ISO date string
+  production: number; // e.g., liters of milk or number of eggs
+  logs?: AnimalData[];
+}
+
 export type RegencyCode =
   | "KR" // Karangasem
   | "BA" // Bangli
