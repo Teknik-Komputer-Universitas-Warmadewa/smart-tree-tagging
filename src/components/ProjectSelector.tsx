@@ -1,8 +1,6 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useState, useEffect } from "react";
 import { useUser } from "../context/UserContext";
-import { createProject, getUserProjects, updateProject } from "../firebase/projects";
-
+import { createProject, getUserProjects, updateProject, uploadImage } from "../firebase/projects";
 import { useNavigate } from "react-router-dom";
 import { Project } from "../types";
 import ProjectModal from "./ProjectModal";
@@ -33,21 +31,44 @@ const ProjectSelector: React.FC = () => {
     return { label: "IN PROGRESS", color: "bg-yellow-500" };
   };
 
-  const handleCreateProject = async (projectData: Omit<Project, "id" | "userId" | "createdAt">) => {
+  const handleCreateProject = async (
+    projectData: Omit<Project, "id" | "userId" | "createdAt"> & { logoFile?: File }
+  ) => {
     if (!user) return;
     setLoading(true);
     try {
       if (!navigator.geolocation) {
         setError("Geolocation is not supported by your browser");
+        setLoading(false);
         return;
       }
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
-          const newProject = await createProject(user.uid, projectData.name, {
+          const newProjectData = {
+            name: projectData.name,
+            description: projectData.description,
+            logo: "", // Akan diisi setelah upload
+            startDate: projectData.startDate,
+            endDate: projectData.endDate,
+            geolocation: { latitude, longitude },
+          };
+
+          // Buat proyek terlebih dahulu untuk mendapatkan ID
+          const newProject = await createProject(user.uid, newProjectData.name, {
             latitude,
             longitude,
           });
+
+          // Jika ada file logo, unggah ke Firebase Storage
+          let logoUrl = projectData.logo;
+          if (projectData.logoFile) {
+            logoUrl = await uploadImage(projectData.logoFile, user.uid, newProject.id);
+            // Perbarui proyek dengan URL logo
+            await updateProject(newProject.id, { ...newProjectData, logo: logoUrl });
+            newProject.logo = logoUrl;
+          }
+
           setProjects([...projects, newProject]);
           setShowCreateModal(false);
           setLoading(false);
@@ -58,7 +79,10 @@ const ProjectSelector: React.FC = () => {
         }
       );
     } catch (err) {
-      setError("Failed to create project");
+      if (err instanceof Error) {
+        setError("Failed to create project");
+      }
+
       setLoading(false);
     }
   };
@@ -68,17 +92,36 @@ const ProjectSelector: React.FC = () => {
     navigate("/dashboard");
   };
 
-  const handleEditProject = async (projectData: Omit<Project, "id" | "userId" | "createdAt">) => {
+  const handleEditProject = async (
+    projectData: Omit<Project, "id" | "userId" | "createdAt"> & { logoFile?: File }
+  ) => {
     if (!selectedProject) return;
     setLoading(true);
     try {
-      await updateProject(selectedProject.id, projectData);
+      let logoUrl = projectData.logo;
+      if (projectData.logoFile && user) {
+        // Unggah logo baru jika ada file yang dipilih
+        logoUrl = await uploadImage(projectData.logoFile, user.uid, selectedProject.id);
+      }
+
+      const updatedProjectData = {
+        name: projectData.name,
+        description: projectData.description,
+        logo: logoUrl,
+        startDate: projectData.startDate,
+        endDate: projectData.endDate,
+        geolocation: projectData.geolocation,
+      };
+
+      await updateProject(selectedProject.id, updatedProjectData);
       setProjects(
-        projects.map((p) => (p.id === selectedProject.id ? { ...p, ...projectData } : p))
+        projects.map((p) => (p.id === selectedProject.id ? { ...p, ...updatedProjectData } : p))
       );
       setShowEditModal(false);
     } catch (err) {
-      setError("Failed to update project");
+      if (err instanceof Error) {
+        setError("Failed to create project");
+      }
     } finally {
       setLoading(false);
     }
@@ -108,7 +151,6 @@ const ProjectSelector: React.FC = () => {
               onClick={() => handleSelectProject(project.id)}
             >
               <div className="relative">
-                {/* Placeholder for project image/logo */}
                 <div className="h-40 bg-gray-200 rounded-t-lg flex items-center justify-center">
                   {project.logo ? (
                     <img
@@ -138,14 +180,7 @@ const ProjectSelector: React.FC = () => {
                 }}
                 className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M15.232 5.232l3.536 3.536M9 14h6l-3-3m-3 3V8a2 2 0 012-2h2a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2z"
-                  />
-                </svg>
+                Edit
               </button>
             </div>
           );
