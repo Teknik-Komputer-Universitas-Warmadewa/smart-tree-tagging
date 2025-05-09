@@ -67,8 +67,8 @@ export const getAnimalDetails = (id: string) => {
   };
 
   const types: { [key: string]: string } = {
-    AP: "Ayam Petelur", // Egg-laying Chicken
-    AB: "Ayam Broiler", // Broiler Chicken
+    AP: "Ayam", // Egg-laying Chicken
+    AB: "Ayam", // Broiler Chicken
     SA: "Sapi", // Cow
     KE: "Kambing", // Goat
     BE: "Bebek", // Duck
