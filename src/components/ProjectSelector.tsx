@@ -131,6 +131,7 @@ const ProjectSelector: React.FC = () => {
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold text-white">Own Project</h1>
+        <p className="text-xs font-bold">Version {__APP_VERSION__}</p>
         <button
           onClick={() => setShowCreateModal(true)}
           className="px-4 py-2 bg-blue-500 text-white rounded"
