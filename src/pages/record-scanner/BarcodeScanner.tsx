@@ -344,7 +344,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
   };
 
   return (
-    <div className="flex flex-col items-center min-h-screen p-4 bg-gray-900 text-white">
+    <div className="flex flex-col items-center min-h-screen max-h-screen overflow-y-auto p-4 bg-gray-900 text-white">
       <div className="bg-gray-800 shadow-lg rounded-lg p-6 max-w-lg w-full">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-200">Barcode Scanner</h2>
@@ -381,7 +381,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onBack }) => {
         )}
 
         {result && tagType && (
-          <div className="mb-4">
+          <div className="mb-4 ">
             <p className="text-green-400 font-medium mb-4">
               Scanned ID: {result} ({tagType === "tree" ? "Smart Tree Tag" : "Smart Farm Tag"})
             </p>
