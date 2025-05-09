@@ -27,8 +27,8 @@ const ProjectSelector: React.FC = () => {
   const getStatus = (project: Project) => {
     const endDate = new Date(project.endDate);
     const now = new Date();
-    if (endDate < now) return { label: "OVERDUE", color: "bg-orange-500" };
-    return { label: "IN PROGRESS", color: "bg-yellow-500" };
+    if (endDate < now) return { label: "IN PROGRESS", color: "bg-green-500" };
+    return { label: "OVERDUE", color: "bg-orange-500" };
   };
 
   const handleCreateProject = async (

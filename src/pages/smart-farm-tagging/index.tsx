@@ -269,18 +269,18 @@ const SmartFarmTagging = () => {
     fetchAnimals();
   }, [selectedProject]);
 
-  // Initialize MapLibre map
   useEffect(() => {
     const init = async () => {
       const map = new maplibregl.Map({
         container: "map2d",
         style:
-          "https://api.maptiler.com/maps/basic-v2/style.json?key=QPPbodMM65oXklexLrAP#6.9/-14.83331/-62.45226",
-        zoom: 18,
+          "https://api.maptiler.com/maps/satellite/style.json?key=QPPbodMM65oXklexLrAP#6.9/-14.83331/-62.45226",
+        zoom: 16,
         center: selectedProject
           ? [selectedProject.geolocation.longitude, selectedProject.geolocation.latitude]
           : [115.24274707362876, -8.65900200814309],
         attributionControl: false,
+        pitch: 50,
       });
 
       mapLibreRef.current = map;

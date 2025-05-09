@@ -1,5 +1,6 @@
 import { FaSignOutAlt, FaTree } from "react-icons/fa";
 import { MdQrCodeScanner } from "react-icons/md";
+import { MdArrowBack } from "react-icons/md";
 import { PiCowFill } from "react-icons/pi";
 import { NavLink } from "react-router-dom";
 import styled from "styled-components";
@@ -86,7 +87,14 @@ const Sidebar = () => {
 
   return (
     <SidebarContainer>
-      <SidebarTitle>{selectedProject?.name.toUpperCase() || "Select Project"}</SidebarTitle>
+      <div className=" flex items-center justify-evenly">
+        <NavLink to="/">
+          <div className="icon">
+            <MdArrowBack size={20} />
+          </div>
+        </NavLink>
+        <SidebarTitle>{selectedProject?.name.toUpperCase() || "Select Project"}</SidebarTitle>
+      </div>
       <SidebarList>
         <SidebarItem>
           <NavLink to="record">
